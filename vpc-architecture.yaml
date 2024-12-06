@@ -1,17 +1,49 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: "AWS VPC with Public and Private Subnets, Internet Gateway, NAT Gateway, and Routing"
 
+Parameters:
+  VpcCidrBlock:
+    Description: CIDR block for the VPC
+    Type: String
+    Default: 172.16.0.0/16
+    AllowedPattern: ^(([0-9]{1,3}\.){3}[0-9]{1,3}\/([0-9]|[1-2][0-9]|3[0-2]))$
+    ConstraintDescription: Must be a valid CIDR block (e.g., 172.16.0.0/16).
+  
+  EnableDnsSupport:
+    Description: Enable DNS support for the VPC
+    Type: String
+    Default: "true"
+    AllowedValues: 
+      - "true"
+      - "false"
+    ConstraintDescription: Must be "true" or "false".
+  
+  EnableDnsHostnames:
+    Description: Enable DNS hostnames for the VPC
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    ConstraintDescription: Must be "true" or "false".
+
 Resources:
   # VPC
   MainVPC:
     Type: AWS::EC2::VPC
     Properties:
-      CidrBlock: 172.16.0.0/16
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
+      CidrBlock: !Ref VpcCidrBlock
+      EnableDnsSupport: !Ref EnableDnsSupport
+      EnableDnsHostnames: !Ref EnableDnsHostnames
       Tags:
         - Key: Name
-          Value: Main-VPC
+          Value: Main-VPC2
+Outputs:
+  VpcId:
+    Description: The ID of the created VPC
+    Value: !Ref Main-VPC2
+    Export:
+      Name: VpcId
 
   # Internet Gateway
   InternetGateway:
@@ -86,6 +118,9 @@ Resources:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
+      DependsOn: 
+        - PublicRouteTable
+        - InternetGateway
 
   PublicSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -155,8 +190,32 @@ Resources:
     Properties:
       SubnetId: !Ref PrivateSubnet2
       RouteTableId: !Ref PrivateRouteTable
+# Private Route Table for AZ2
+PrivateRouteTable2:
+  Type: AWS::EC2::RouteTable
+  Properties:
+    VpcId: !Ref MainVPC
+    Tags:
+      - Key: Name
+        Value: PrivateRouteTable-AZ2
 
-Outputs:
-  VPCId:
-    Description: VPC ID
-    Value: !Ref MainVPC
+  PrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway2
+    DependsOn:
+      - PrivateRouteTable2
+      - NatGateway2
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable2
+
+  Outputs:
+    VPCId:
+      Description: VPC ID
+      Value: !Ref MainVPC
