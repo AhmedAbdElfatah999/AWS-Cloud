@@ -219,3 +219,52 @@ PrivateRouteTable2:
     VPCId:
       Description: VPC ID
       Value: !Ref MainVPC
+
+
+  Resources:
+  # Template for EC2 Instances
+    TwitterLaunchTemplate:
+      Type: AWS::EC2::LaunchTemplate
+      Properties:
+        LaunchTemplateName: TwitterServiceTemplate
+        LaunchTemplateData:
+          InstanceType: t2.micro 
+          KeyName: my-key-pair 
+          ImageId: ami-0abcdef1234567890 
+          NetworkInterfaces:
+            - AssociatePublicIpAddress: false
+              SubnetId: !Ref PrivateSubnet1 
+              DeviceIndex: 0
+          TagSpecifications:
+            - ResourceType: instance
+              Tags:
+                - Key: Name
+                  Value: TwitterServiceInstance
+
+  # Auto Scaling Group
+  TwitterAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: TwitterServiceASG
+      LaunchTemplate:
+        LaunchTemplateId: !Ref TwitterLaunchTemplate
+        Version: !GetAtt TwitterLaunchTemplate.LatestVersionNumber
+      MinSize: 2
+      MaxSize: 2
+      DesiredCapacity: 2
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      Tags:
+        - Key: Name
+          Value: TwitterServiceInstance
+          PropagateAtLaunch: true
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 300
+
+Outputs:
+  TwitterServiceASGName:
+    Description: Name of the Auto Scaling Group
+    Value: !Ref TwitterAutoScalingGroup
+
+    
