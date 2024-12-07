@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Server Infrastructure with Launch Template, Auto Scaling Group, and Application Load Balancer"
+
+Parameters:
+  VpcId:
+    Description: VPC ID for the ALB and servers
+    Type: String
+
+  PublicSubnets:
+    Description: Comma-separated list of public subnet IDs for the ALB
+    Type: List<AWS::EC2::Subnet::Id>
+
+  PrivateSubnets:
+    Description: Comma-separated list of private subnet IDs for the servers
+    Type: List<AWS::EC2::Subnet::Id>
+
+  ALBSecurityGroup:
+    Description: Security Group for the ALB
+    Type: String
+
+  ServerSecurityGroup:
+    Description: Security Group for EC2 Instances
+    Type: String
+
+  KeyName:
+    Description: Key pair name for SSH access
+    Type: AWS::EC2::KeyPair::KeyName
+
+Resources:
+  # Launch Template for EC2 Instances
+  TwitterLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: TwitterServiceTemplate
+      LaunchTemplateData:
+        InstanceType: t2.micro
+        KeyName: !Ref KeyName
+        ImageId: ami-0abcdef1234567890
+        SecurityGroupIds:
+          - !Ref ServerSecurityGroup
+        NetworkInterfaces:
+          - AssociatePublicIpAddress: false
+            SubnetId: !Select [0, !Ref PrivateSubnets]
+            DeviceIndex: 0
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - Key: Name
+                Value: TwitterServiceInstance
+
+  # Auto Scaling Group
+  TwitterAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: TwitterServiceASG
+      LaunchTemplate:
+        LaunchTemplateId: !Ref TwitterLaunchTemplate
+        Version: !GetAtt TwitterLaunchTemplate.LatestVersionNumber
+      MinSize: 2
+      MaxSize: 2
+      DesiredCapacity: 2
+      VPCZoneIdentifier: !Ref PrivateSubnets
+      TargetGroupARNs:
+        - !Ref ALBTargetGroup
+      Tags:
+        - Key: Name
+          Value: TwitterServiceInstance
+          PropagateAtLaunch: true
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 300
+
+  # ALB Resource
+  ApplicationLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: MyApplicationALB
+      Scheme: internet-facing
+      Subnets: !Ref PublicSubnets
+      SecurityGroups:
+        - !Ref ALBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Application-ALB
+
+  # Target Group for ALB
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: MyTargetGroup
+      VpcId: !Ref VpcId
+      Protocol: HTTP
+      Port: 80
+      TargetType: instance
+      HealthCheckProtocol: HTTP
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 2
+      Tags:
+        - Key: Name
+          Value: Application-TargetGroup
+
+  # Listener for ALB
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref ApplicationLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref ALBTargetGroup
+
+Outputs:
+  ALBDNSName:
+    Description: DNS Name of the Application Load Balancer
+    Value: !GetAtt ApplicationLoadBalancer.DNSName
+
+  TwitterServiceASGName:
+    Description: Name of the Auto Scaling Group
+    Value: !Ref TwitterAutoScalingGroup
