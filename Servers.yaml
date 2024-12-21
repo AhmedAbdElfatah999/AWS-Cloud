@@ -2,22 +2,6 @@ AWSTemplateFormatVersion: "2010-09-09"
 Description: "Server Infrastructure with Launch Template, Auto Scaling Group, and Application Load Balancer"
 
 Parameters:
-  VpcId:
-    Description: VPC ID for the ALB and servers
-    Type: AWS::EC2::VPC::Id
-
-  PublicSubnets:
-    Description: Comma-separated list of public subnet IDs for the ALB
-    Type: List<AWS::EC2::Subnet::Id>
-
-  PrivateSubnets:
-    Description: Comma-separated list of private subnet IDs for the servers
-    Type: List<AWS::EC2::Subnet::Id>
-
-  KeyName:
-    Description: Key pair name for SSH access
-    Type: AWS::EC2::KeyPair::KeyName
-
   SshCidrIp:
     Type: String
     Default: 0.0.0.0/0
@@ -52,8 +36,7 @@ Resources:
       LaunchTemplateName: TwitterServiceTemplate
       LaunchTemplateData:
         InstanceType: t2.micro
-        KeyName: !Ref KeyName
-        ImageId: !Sub "resolve:ssm:/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+        ImageId: ami-0014a768bde80541f
         SecurityGroupIds:
           - !Ref WebServerSecurityGroup
         BlockDeviceMappings:
