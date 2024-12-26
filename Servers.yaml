@@ -195,7 +195,7 @@ Resources:
         Conditions:
           - Field: path-pattern
             Values:
-              - /twitter
+              - /
         Actions:
           - Type: forward
             TargetGroupArn: !Ref ALBTargetGroup
