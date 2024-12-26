@@ -50,29 +50,12 @@ Resources:
         UserData: 
           Fn::Base64: !Sub |
             #!/bin/bash
-            # Update the system
-            yum update -y
-
-            # Install Apache web server
-            yum install -y httpd
-
-            # Start and enable Apache
-            systemctl start httpd
-            systemctl enable httpd
-
-            # Create a simple index.html
-            echo "<html>
-            <head>
-              <title>Twitter Service</title>
-            </head>
-            <body>
-              <h1>Welcome to the Twitter Service</h1>
-              <p>This is a placeholder page for the Twitter application.</p>
-            </body>
-            </html>" > /var/www/html/index.html
-
-            # Ensure proper permissions
-            chmod 644 /var/www/html/index.html
+              yum update -y
+              yum install -y docker
+              systemctl start docker
+              systemctl enable docker
+              docker pull hooramer/hello-twitter
+              docker run -d -p 8080:8080 hooramer/hello-twitter
 
         TagSpecifications:
           - ResourceType: instance
